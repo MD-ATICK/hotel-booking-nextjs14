@@ -1,0 +1,174 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+model User {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  username      String?         @unique
+  email         String?         @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  hotels    Hotel[]
+  bookings  Booking[]
+}
+
+model Hotel {
+  id                  String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String  @db.ObjectId
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  description         String
+  image               String
+  country             String
+  state               String?
+  city                String?
+  locationDescription String
+  gym                 Boolean @default(false)
+  spa                 Boolean @default(false)
+  bar                 Boolean @default(false)
+  laundry             Boolean @default(false)
+  restaurant          Boolean @default(false)
+  shopping            Boolean @default(false)
+  freeParking         Boolean @default(false)
+  bikeRental          Boolean @default(false)
+  freeWifi            Boolean @default(false)
+  movieNights         Boolean @default(false)
+  swimmingPool        Boolean @default(false)
+  coffeeShop          Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  rooms     Room[]
+  bookings  Booking[]
+
+  @@fulltext([title])
+  @@map("hotels")
+}
+
+model Room {
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  description    String
+  bedCount       Int     @default(0)
+  questCount     Int     @default(0)
+  bathRoomCount  Int     @default(0)
+  kingBed        Int     @default(0)
+  queenBed       Int     @default(0)
+  image          String
+  breakFastPrice Int
+  roomPrice      Int
+  roomService    Boolean @default(false)
+  TV             Boolean @default(false)
+  balcony        Boolean @default(false)
+  freeWifi       Boolean @default(false)
+  cityView       Boolean @default(false)
+  oceanView      Boolean @default(false)
+  forestView     Boolean @default(false)
+  mountainView   Boolean @default(false)
+  airCondition   Boolean @default(false)
+  soundProofed    Boolean @default(false)
+
+  hotelId String @db.ObjectId
+  hotel   Hotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([hotelId])
+}
+
+model Booking {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @db.ObjectId
+  roomId            String   @db.ObjectId
+  hotelId           String   @db.ObjectId
+  hotelOwnerId      String   @db.ObjectId
+  breakFastIncluded Boolean
+  currency          String
+  totalPrice        Int
+  paymentState      Boolean  @default(false)
+  paymentIntentId   String   @unique
+  bookedAt          DateTime @default(now())
+  checkInDate       DateTime
+  checkOutDate      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id])
+  Hotel     Hotel    @relation(fields: [hotelId], references: [id])
+  Room      Room     @relation(fields: [roomId], references: [id])
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @id @map("_id")
+  userId               String  @db.ObjectId
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, credentialID])
+}
